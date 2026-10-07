@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Agendar{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>Agendar horário</h1>
+    <p class="muted">Selecione o serviço, o barbeiro e a data para ver os horários disponíveis.</p>
+</div>
+
+<div class="card">
+    <!-- Passo 1: escolher servico, barbeiro e data (recarrega a grade de horarios via GET) -->
+    <form method="get" action="{{ url_for('cliente_novo_agendamento') }}" class="form form-inline">
+        <label>Serviço
+            <select name="servico_id" required>
+                <option value="">Selecione...</option>
+                {% for s in servicos %}
+                <option value="{{ s.id }}" {% if servico_id == s.id %}selected{% endif %}>
+                    {{ s.nome }} — {{ s.preco|moeda }} ({{ s.duracao_min }} min)
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Barbeiro
+            <select name="barbeiro_id" required>
+                <option value="">Selecione...</option>
+                {% for b in barbeiros %}
+                <option value="{{ b.id }}" {% if barbeiro_id == b.id %}selected{% endif %}>{{ b.nome }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Data
+            <input type="date" name="data" value="{{ data }}" min="{{ hoje }}" required>
+        </label>
+        <button type="submit" class="btn btn-ghost">Ver horários</button>
+    </form>
+</div>
+
+{% if barbeiro_id and data %}
+<div class="card">
+    <h2>Horários disponíveis — {{ data|data_br }}</h2>
+    {% if horarios %}
+    <!-- Passo 2: confirmar o horario escolhido -->
+    <form method="post" action="{{ url_for('cliente_novo_agendamento') }}">
+        <input type="hidden" name="acao" value="confirmar">
+        <input type="hidden" name="servico_id" value="{{ servico_id or '' }}">
+        <input type="hidden" name="barbeiro_id" value="{{ barbeiro_id }}">
+        <input type="hidden" name="data" value="{{ data }}">
+        <div class="slots">
+            {% for h in horarios %}
+            <label class="slot">
+                <input type="radio" name="hora" value="{{ h }}" required>
+                <span>{{ h }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        {% if not servico_id %}
+        <p class="flash flash-erro">Selecione um serviço acima antes de confirmar.</p>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">Confirmar agendamento</button>
+    </form>
+    {% else %}
+    <p class="muted">Nenhum horário disponível para esta data. Tente outro dia.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

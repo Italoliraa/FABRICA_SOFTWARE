@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Entrar{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+    <div class="card auth-card">
+        <h1>Entrar</h1>
+        <p class="muted">Acesse sua conta para agendar e gerenciar horários.</p>
+        <form method="post" class="form">
+            <label>E-mail
+                <input type="email" name="email" required autofocus>
+            </label>
+            <label>Senha
+                <input type="password" name="senha" required>
+            </label>
+            <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+        </form>
+        <div class="demo-box">
+            <strong>Contas de teste</strong>
+            <ul>
+                <li>Admin: admin@barbearia.com / admin123</li>
+                <li>Barbeiro: carlos@barbearia.com / barbeiro123</li>
+                <li>Cliente: joao@email.com / cliente123</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

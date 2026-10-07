@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Serviços{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Gerenciar serviços</h1></div>
+
+<div class="cols">
+    <div class="card">
+        <h2>Novo serviço</h2>
+        <form method="post" action="{{ url_for('admin_servico_salvar') }}" class="form">
+            <label>Nome <input type="text" name="nome" required></label>
+            <label>Descrição <input type="text" name="descricao"></label>
+            <label>Duração (minutos) <input type="number" name="duracao_min" min="5" step="5" required></label>
+            <label>Preço (R$) <input type="number" name="preco" min="0" step="0.01" required></label>
+            <button type="submit" class="btn btn-primary btn-block">Cadastrar</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Serviços cadastrados</h2>
+        {% if servicos %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Nome</th><th>Duração</th><th>Preço</th><th>Ações</th></tr></thead>
+                <tbody>
+                    {% for s in servicos %}
+                    <tr>
+                        <td>{{ s.nome }}{% if s.descricao %}<br><span class="muted">{{ s.descricao }}</span>{% endif %}</td>
+                        <td>{{ s.duracao_min }} min</td>
+                        <td>{{ s.preco|moeda }}</td>
+                        <td class="acoes">
+                            <details>
+                                <summary class="btn btn-ghost btn-sm">Editar</summary>
+                                <form method="post" action="{{ url_for('admin_servico_salvar') }}" class="form edit-form">
+                                    <input type="hidden" name="id" value="{{ s.id }}">
+                                    <label>Nome <input type="text" name="nome" value="{{ s.nome }}" required></label>
+                                    <label>Descrição <input type="text" name="descricao" value="{{ s.descricao or '' }}"></label>
+                                    <label>Duração <input type="number" name="duracao_min" value="{{ s.duracao_min }}" min="5" step="5" required></label>
+                                    <label>Preço <input type="number" name="preco" value="{{ s.preco }}" min="0" step="0.01" required></label>
+                                    <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+                                </form>
+                            </details>
+                            <form method="post" action="{{ url_for('admin_servico_excluir', sid=s.id) }}">
+                                <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="muted">Nenhum serviço cadastrado.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

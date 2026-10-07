@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Minha agenda{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Minha agenda</h1>
+        <p class="muted">{{ barbeiro.nome }}{% if barbeiro.especialidade %} · {{ barbeiro.especialidade }}{% endif %}</p>
+    </div>
+    <form method="get" class="form-inline">
+        <label>Filtrar por data
+            <input type="date" name="data" value="{{ filtro_data }}">
+        </label>
+        <button type="submit" class="btn btn-ghost btn-sm">Filtrar</button>
+        {% if filtro_data %}<a href="{{ url_for('barbeiro_agenda') }}" class="btn btn-ghost btn-sm">Limpar</a>{% endif %}
+    </form>
+</div>
+
+{% if agendamentos %}
+<div class="table-wrap card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Data / Hora</th>
+                <th>Cliente</th>
+                <th>Serviço</th>
+                <th>Contato</th>
+                <th>Status</th>
+                <th>Alterar status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in agendamentos %}
+            <tr>
+                <td><strong>{{ a.data|data_br }}</strong><br>{{ a.hora }}</td>
+                <td>{{ a.cliente_nome }}</td>
+                <td>{{ a.servico_nome }}<br><span class="muted">{{ a.duracao_min }} min · {{ a.preco|moeda }}</span></td>
+                <td>{{ a.cliente_telefone or '—' }}</td>
+                <td><span class="status status-{{ a.status }}">{{ a.status|status_label }}</span></td>
+                <td>
+                    <form method="post" action="{{ url_for('barbeiro_status', ag_id=a.id) }}" class="form-inline">
+                        <input type="hidden" name="data" value="{{ filtro_data }}">
+                        <select name="status">
+                            <option value="agendado" {% if a.status=='agendado' %}selected{% endif %}>Agendado</option>
+                            <option value="em_atendimento" {% if a.status=='em_atendimento' %}selected{% endif %}>Em atendimento</option>
+                            <option value="concluido" {% if a.status=='concluido' %}selected{% endif %}>Concluído</option>
+                            <option value="cancelado" {% if a.status=='cancelado' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                        <button type="submit" class="btn btn-ghost btn-sm">Salvar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty"><p>Nenhum atendimento na agenda{% if filtro_data %} para esta data{% endif %}.</p></div>
+{% endif %}
+{% endblock %}

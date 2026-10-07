@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Agendamentos{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>Agendamentos da barbearia</h1>
+    <form method="get" class="form-inline">
+        <label>Status
+            <select name="status">
+                <option value="">Todos</option>
+                <option value="agendado" {% if status=='agendado' %}selected{% endif %}>Agendado</option>
+                <option value="em_atendimento" {% if status=='em_atendimento' %}selected{% endif %}>Em atendimento</option>
+                <option value="concluido" {% if status=='concluido' %}selected{% endif %}>Concluído</option>
+                <option value="cancelado" {% if status=='cancelado' %}selected{% endif %}>Cancelado</option>
+            </select>
+        </label>
+        <button type="submit" class="btn btn-ghost btn-sm">Filtrar</button>
+    </form>
+</div>
+
+{% if agendamentos %}
+<div class="table-wrap card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Data / Hora</th>
+                <th>Cliente</th>
+                <th>Barbeiro</th>
+                <th>Serviço</th>
+                <th>Valor</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in agendamentos %}
+            <tr>
+                <td><strong>{{ a.data|data_br }}</strong><br>{{ a.hora }}</td>
+                <td>{{ a.cliente_nome }}</td>
+                <td>{{ a.barbeiro_nome }}</td>
+                <td>{{ a.servico_nome }}</td>
+                <td>{{ a.preco|moeda }}</td>
+                <td><span class="status status-{{ a.status }}">{{ a.status|status_label }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card empty"><p>Nenhum agendamento encontrado.</p></div>
+{% endif %}
+{% endblock %}

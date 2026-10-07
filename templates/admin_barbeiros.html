@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Barbeiros{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Gerenciar barbeiros</h1></div>
+
+<div class="cols">
+    <div class="card">
+        <h2>Novo barbeiro</h2>
+        <form method="post" action="{{ url_for('admin_barbeiro_salvar') }}" class="form">
+            <label>Nome <input type="text" name="nome" required></label>
+            <label>Especialidade <input type="text" name="especialidade"></label>
+            <label>E-mail de acesso <input type="email" name="email" placeholder="opcional, cria login"></label>
+            <label>Senha inicial <input type="text" name="senha" placeholder="padrão: barbeiro123"></label>
+            <label class="check"><input type="checkbox" name="ativo" checked> Ativo</label>
+            <button type="submit" class="btn btn-primary btn-block">Cadastrar</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Barbeiros cadastrados</h2>
+        {% if barbeiros %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody>
+                    {% for b in barbeiros %}
+                    <tr>
+                        <td>{{ b.nome }}{% if b.especialidade %}<br><span class="muted">{{ b.especialidade }}</span>{% endif %}</td>
+                        <td>{{ b.email or '—' }}</td>
+                        <td>{% if b.ativo %}<span class="status status-agendado">Ativo</span>{% else %}<span class="status status-cancelado">Inativo</span>{% endif %}</td>
+                        <td class="acoes">
+                            <details>
+                                <summary class="btn btn-ghost btn-sm">Editar</summary>
+                                <form method="post" action="{{ url_for('admin_barbeiro_salvar') }}" class="form edit-form">
+                                    <input type="hidden" name="id" value="{{ b.id }}">
+                                    <label>Nome <input type="text" name="nome" value="{{ b.nome }}" required></label>
+                                    <label>Especialidade <input type="text" name="especialidade" value="{{ b.especialidade or '' }}"></label>
+                                    <label>E-mail <input type="email" name="email" value="{{ b.email or '' }}"></label>
+                                    <label>Nova senha <input type="text" name="senha" placeholder="deixe em branco p/ manter"></label>
+                                    <label class="check"><input type="checkbox" name="ativo" {% if b.ativo %}checked{% endif %}> Ativo</label>
+                                    <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+                                </form>
+                            </details>
+                            <form method="post" action="{{ url_for('admin_barbeiro_excluir', bid=b.id) }}">
+                                <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="muted">Nenhum barbeiro cadastrado.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

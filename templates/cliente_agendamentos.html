@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Meus agendamentos{% endblock %}
+{% block content %}
+<div class="page-head">
+    <h1>Meus agendamentos</h1>
+    <a href="{{ url_for('cliente_novo_agendamento') }}" class="btn btn-primary">Novo agendamento</a>
+</div>
+
+{% if agendamentos %}
+<div class="grid grid-agendamentos">
+    {% for a in agendamentos %}
+    <article class="card ag-card">
+        <div class="ag-top">
+            <span class="status status-{{ a.status }}">{{ a.status|status_label }}</span>
+            <span class="preco">{{ a.preco|moeda }}</span>
+        </div>
+        <h3>{{ a.servico_nome }}</h3>
+        <ul class="ag-info">
+            <li><strong>Barbeiro:</strong> {{ a.barbeiro_nome }}</li>
+            <li><strong>Data:</strong> {{ a.data|data_br }} às {{ a.hora }}</li>
+            <li><strong>Duração:</strong> {{ a.duracao_min }} min</li>
+        </ul>
+        {% if a.status in ['agendado', 'em_atendimento'] %}
+        <form method="post" action="{{ url_for('cliente_cancelar', ag_id=a.id) }}">
+            <button type="submit" class="btn btn-danger btn-sm btn-block">Cancelar</button>
+        </form>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card empty">
+    <p>Você ainda não tem agendamentos.</p>
+    <a href="{{ url_for('cliente_novo_agendamento') }}" class="btn btn-primary">Agendar agora</a>
+</div>
+{% endif %}
+{% endblock %}

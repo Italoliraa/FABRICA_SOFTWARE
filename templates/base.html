@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BarberFlow{% endblock %} · BarberFlow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div class="container topbar-inner">
+            <a href="{{ url_for('index') }}" class="brand">
+                <span class="brand-mark">✂</span>
+                <span class="brand-name">BarberFlow</span>
+            </a>
+            <nav class="nav">
+                {% if usuario %}
+                    {% if usuario.papel == 'cliente' %}
+                        <a href="{{ url_for('cliente_novo_agendamento') }}">Agendar</a>
+                        <a href="{{ url_for('cliente_agendamentos') }}">Meus agendamentos</a>
+                    {% elif usuario.papel == 'barbeiro' %}
+                        <a href="{{ url_for('barbeiro_agenda') }}">Minha agenda</a>
+                    {% elif usuario.papel == 'admin' %}
+                        <a href="{{ url_for('admin_agendamentos') }}">Agendamentos</a>
+                        <a href="{{ url_for('admin_servicos') }}">Serviços</a>
+                        <a href="{{ url_for('admin_barbeiros') }}">Barbeiros</a>
+                    {% endif %}
+                    <span class="nav-user">{{ usuario.nome }}</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Sair</a>
+                {% else %}
+                    <a href="{{ url_for('index') }}">Início</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-ghost btn-sm">Entrar</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flashes">
+                    {% for cat, msg in messages %}
+                        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>BarberFlow — sistema de agendamento para barbearias · feito 100% em Python</p>
+        </div>
+    </footer>
+</body>
+</html>

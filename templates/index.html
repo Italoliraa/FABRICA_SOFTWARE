@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Início{% endblock %}
+{% block content %}
+<section class="hero">
+    <div class="hero-text">
+        <p class="eyebrow">Barbearia & Navalha</p>
+        <h1>Seu próximo corte,<br>a um clique de distância.</h1>
+        <p class="lead">Escolha o serviço, o barbeiro e o horário. Simples, rápido e sem complicação.</p>
+        <div class="hero-actions">
+            {% if usuario and usuario.papel == 'cliente' %}
+                <a href="{{ url_for('cliente_novo_agendamento') }}" class="btn btn-primary">Agendar horário</a>
+            {% elif not usuario %}
+                <a href="{{ url_for('login') }}" class="btn btn-primary">Entrar para agendar</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-head">
+        <h2>Nossos serviços</h2>
+        <p>Preços e duração de cada atendimento.</p>
+    </div>
+    <div class="grid grid-servicos">
+        {% for s in servicos %}
+        <article class="card servico-card">
+            <h3>{{ s.nome }}</h3>
+            {% if s.descricao %}<p class="muted">{{ s.descricao }}</p>{% endif %}
+            <div class="servico-meta">
+                <span class="badge">{{ s.duracao_min }} min</span>
+                <span class="preco">{{ s.preco|moeda }}</span>
+            </div>
+        </article>
+        {% else %}
+        <p class="muted">Nenhum serviço cadastrado ainda.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-head">
+        <h2>Nossos barbeiros</h2>
+        <p>Profissionais prontos para te atender.</p>
+    </div>
+    <div class="grid grid-barbeiros">
+        {% for b in barbeiros %}
+        <article class="card barbeiro-card">
+            <div class="avatar">{{ b.nome[0]|upper }}</div>
+            <div>
+                <h3>{{ b.nome }}</h3>
+                {% if b.especialidade %}<p class="muted">{{ b.especialidade }}</p>{% endif %}
+            </div>
+        </article>
+        {% else %}
+        <p class="muted">Nenhum barbeiro disponível no momento.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

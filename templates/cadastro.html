@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Criar conta{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+    <div class="card auth-card">
+        <h1>Criar conta</h1>
+        <p class="muted">Cadastre-se como cliente para agendar seus horários.</p>
+        <form method="post" class="form">
+            <label>Nome completo
+                <input type="text" name="nome" required autofocus>
+            </label>
+            <label>E-mail
+                <input type="email" name="email" required>
+            </label>
+            <label>Telefone
+                <input type="text" name="telefone" placeholder="(00) 00000-0000">
+            </label>
+            <label>Senha
+                <input type="password" name="senha" required>
+            </label>
+            <button type="submit" class="btn btn-primary btn-block">Criar conta</button>
+        </form>
+        <p class="auth-alt">Já tem conta? <a href="{{ url_for('login') }}">Entrar</a></p>
+    </div>
+</div>
+{% endblock %}
