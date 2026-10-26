@@ -1,5 +1,5 @@
 """
-BarberFlow - Sistema de agendamento para barbearias.
+BarberAgenda - Sistema de agendamento para barbearias.
 100% Python (Flask + SQLite), renderizacao no servidor, sem JavaScript.
 Atende aos requisitos RF01 a RF18.
 """
@@ -26,7 +26,7 @@ from db import (
 )
 
 app = Flask(__name__)
-app.secret_key = "barberflow-chave-secreta-troque-em-producao"
+app.secret_key = "barberagenda-chave-secreta-troque-em-producao"
 
 init_db()
 
