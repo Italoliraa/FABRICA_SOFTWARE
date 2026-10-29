@@ -1,8 +1,4 @@
-"""
-BarberAgenda - Sistema de agendamento para barbearias.
-100% Python (Flask + SQLite), renderizacao no servidor, sem JavaScript.
-Atende aos requisitos RF01 a RF18.
-"""
+
 from datetime import datetime
 from functools import wraps
 
