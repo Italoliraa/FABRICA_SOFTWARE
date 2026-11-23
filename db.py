@@ -1,7 +1,4 @@
-"""
-Camada de acesso ao banco de dados (RF18).
-Usa apenas a biblioteca padrao do Python (sqlite3), sem ORM e sem JavaScript.
-"""
+
 import sqlite3
 from datetime import datetime, timedelta
 from hashlib import sha256
@@ -9,7 +6,7 @@ import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "barbearia.db")
 
-# Horario de funcionamento da barbearia
+
 HORA_ABERTURA = 9   # 09:00
 HORA_FECHAMENTO = 19  # 19:00
 INTERVALO_MIN = 30    # grade de horarios de 30 em 30 minutos
@@ -27,7 +24,7 @@ def hash_senha(senha):
 
 
 def init_db():
-    """Cria as tabelas e popula dados iniciais caso o banco esteja vazio."""
+    """Cria as tabelas e preenche dados iniciais caso o banco esteja vazio."""
     conn = get_db()
     cur = conn.cursor()
 

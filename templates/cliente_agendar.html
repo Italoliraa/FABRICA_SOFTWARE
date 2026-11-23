@@ -20,7 +20,7 @@
             </select>
         </label>
         <label>Barbeiro
-            <select name="barbeiro_id" required>
+            <select name="barbeiro_id" id="lista-barbeiros" required>
                 <option value="">Selecione...</option>
                 {% for b in barbeiros %}
                 <option value="{{ b.id }}" {% if barbeiro_id == b.id %}selected{% endif %}>{{ b.nome }}</option>
@@ -62,4 +62,62 @@
     {% endif %}
 </div>
 {% endif %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+    
+    const listaBarbeiros = document.getElementById("lista-barbeiros");
+
+    
+    const socket = io();
+
+    
+    socket.on("connect", function() {
+        console.log("Conectado ao servidor Socket.IO!");
+    });
+
+    
+    socket.on("barbeiros_atualizados", function(dados) {
+
+        console.log("Recebendo nova lista de barbeiros...");
+
+        
+        const barbeiroSelecionado = listaBarbeiros.value;
+
+        
+        listaBarbeiros.innerHTML = "";
+
+        
+        listaBarbeiros.add(
+            new Option("Selecione...", "")
+        );
+
+        
+        dados.barbeiros.forEach(function(barbeiro) {
+
+            const opcao = new Option(
+                barbeiro.nome,
+                barbeiro.id
+            );
+
+            listaBarbeiros.add(opcao);
+        });
+
+        // Mantém a seleção anterior, se o barbeiro ainda existir
+        const barbeiroExiste = dados.barbeiros.some(function(b) {
+            return String(b.id) === barbeiroSelecionado;
+        });
+
+        if (barbeiroExiste) {
+            listaBarbeiros.value = barbeiroSelecionado;
+        }
+
+        console.log("Lista de barbeiros atualizada!");
+    });
+
+    // 5. Identifica problemas de conexão
+    socket.on("connect_error", function(erro) {
+        console.error("Erro de conexão:", erro);
+    });
+</script>
 {% endblock %}

@@ -13,6 +13,8 @@ from flask import (
     abort,
 )
 
+from flask_socketio import SocketIO
+
 from db import (
     init_db,
     get_db,
@@ -24,7 +26,36 @@ from db import (
 app = Flask(__name__)
 app.secret_key = "barberagenda-chave-secreta-troque-em-producao"
 
+socketio = SocketIO(app, async_mode="threading")
+
 init_db()
+
+def notificar_barbeiros():
+    conn = get_db()
+
+    barbeiros = conn.execute(
+        """
+        SELECT id, nome
+        FROM barbeiros
+        WHERE ativo = 1
+        ORDER BY nome
+        """
+    ).fetchall()
+
+    conn.close()
+
+    dados = [
+        {
+            "id": b["id"],
+            "nome": b["nome"]
+        }
+        for b in barbeiros
+    ]
+
+    socketio.emit(
+        "barbeiros_atualizados",
+        {"barbeiros": dados}
+    )
 
 
 # ----------------------------------------------------------------------------
@@ -139,7 +170,7 @@ def logout():
 
 
 # ----------------------------------------------------------------------------
-# AREA DO CLIENTE (RF04 a RF10)
+# AREA DO CLIENTE 
 # ----------------------------------------------------------------------------
 @app.route("/agendar", methods=["GET", "POST"])
 @login_obrigatorio("cliente")
@@ -247,7 +278,7 @@ def cliente_cancelar(ag_id):
 
 
 # ----------------------------------------------------------------------------
-# AREA DO BARBEIRO (RF11 a RF13)
+# AREA DO BARBEIRO 
 # ----------------------------------------------------------------------------
 def barbeiro_do_usuario(usuario_id):
     conn = get_db()
@@ -307,7 +338,7 @@ def barbeiro_status(ag_id):
 
 
 # ----------------------------------------------------------------------------
-# AREA DO ADMINISTRADOR (RF14 a RF16)
+# AREA DO ADMINISTRADOR 
 # ----------------------------------------------------------------------------
 @app.route("/admin/agendamentos")
 @login_obrigatorio("admin")
@@ -330,7 +361,7 @@ def admin_agendamentos():
     return render_template("admin_agendamentos.html", agendamentos=ags, status=status)
 
 
-# ---- CRUD de servicos (RF02, RF03, RF14) ----
+# ---- CRUD de servicos  ----
 @app.route("/admin/servicos")
 @login_obrigatorio("admin")
 def admin_servicos():
@@ -380,7 +411,7 @@ def admin_servico_excluir(sid):
     return redirect(url_for("admin_servicos"))
 
 
-# ---- CRUD de barbeiros (RF01, RF15) ----
+# ---- CRUD de barbeiros  ----
 @app.route("/admin/barbeiros")
 @login_obrigatorio("admin")
 def admin_barbeiros():
@@ -450,6 +481,9 @@ def admin_barbeiro_salvar():
         flash("Barbeiro cadastrado.", "sucesso")
     conn.commit()
     conn.close()
+
+    notificar_barbeiros()
+
     return redirect(url_for("admin_barbeiros"))
 
 
@@ -464,6 +498,8 @@ def admin_barbeiro_excluir(bid):
             conn.execute("DELETE FROM usuarios WHERE id=?", (b["usuario_id"],))
         conn.commit()
     conn.close()
+    if b:
+        notificar_barbeiros()
     flash("Barbeiro excluido.", "sucesso")
     return redirect(url_for("admin_barbeiros"))
 
@@ -479,4 +515,9 @@ def erro_404(e):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000, debug=True)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=3000,
+        debug=True
+    )
