@@ -178,13 +178,33 @@ O BarberAgenda foi planejado considerando alguns requisitos importantes:
 
 ### Banco de dados
 
-* [Banco escolhido pela equipe]
+* SQLite
 
 ### Ferramentas
 
 * Git
 * GitHub
 * Visual Studio Code
+* OpenCL (aceleracao opcional da filtragem de horarios)
+
+### OpenCL
+
+A filtragem dos horarios disponiveis usa OpenCL quando existe um dispositivo
+e um driver OpenCL instalados. O sistema seleciona uma GPU quando disponivel
+e usa a CPU caso contrario, sem alterar o resultado funcional da agenda.
+
+Foram adicionadas as dependencias `numpy` e `pyopencl` no arquivo
+`requirements.txt`. O `numpy` prepara os dados enviados ao dispositivo e o
+`pyopencl` fornece a comunicacao entre Python e OpenCL.
+
+Para instalar as dependencias:
+
+```bash
+pip install -r requirements.txt
+```
+
+O suporte depende do driver OpenCL fornecido pelo fabricante da GPU/CPU. A
+ausencia desse driver nao impede a inicializacao da aplicacao.
 
 ---
 

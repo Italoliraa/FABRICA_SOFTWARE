@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 import os
 
+from opencl_accelerator import filter_available_slots
+
 DB_PATH = os.path.join(os.path.dirname(__file__), "barbearia.db")
 
 
@@ -141,7 +143,9 @@ def horarios_disponiveis(barbeiro_id, data):
     }
     conn.close()
 
-    disponiveis = [s for s in slots_do_dia() if s not in ocupados]
+    # A filtragem da grade usa OpenCL quando disponivel e cai para CPU sem
+    # alterar a regra de negocio nem a ordem cronologica dos horarios.
+    disponiveis = filter_available_slots(slots_do_dia(), ocupados)
 
     # Se a data for hoje, remove horarios que ja passaram
     hoje = datetime.now().strftime("%Y-%m-%d")

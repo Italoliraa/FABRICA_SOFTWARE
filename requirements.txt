@@ -1,2 +1,5 @@
 Flask==3.1.3
 Flask-SocketIO
+# Dependencias adicionadas para a aceleracao opcional da filtragem via OpenCL.
+numpy>=2.0,<3
+pyopencl>=2025.2
