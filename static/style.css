@@ -70,6 +70,7 @@ a:hover { text-decoration: underline; }
 /* Cards */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
 .card + .card { margin-top: 1.25rem; }
+.grid .card + .card { margin-top: 0; }
 .servico-card h3 { font-size: 1.1rem; }
 .servico-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; }
 .preco { color: var(--gold); font-weight: 700; font-size: 1.05rem; }
