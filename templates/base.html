@@ -19,17 +19,21 @@
             <nav class="nav">
                 {% if usuario %}
                     {% if usuario.papel == 'cliente' %}
-                        <a href="{{ url_for('cliente_novo_agendamento') }}">Agendar</a>
-                        <a href="{{ url_for('cliente_agendamentos') }}">Meus agendamentos</a>
+                        <a href="{{ url_for('cliente_barbeiros') }}" class="{% if request.endpoint == 'cliente_barbeiros' %}nav-active{% endif %}" {% if request.endpoint == 'cliente_barbeiros' %}aria-current="page"{% endif %}>Barbeiros</a>
+                        <a href="{{ url_for('cliente_agendamentos') }}" class="{% if request.endpoint == 'cliente_agendamentos' %}nav-active{% endif %}" {% if request.endpoint == 'cliente_agendamentos' %}aria-current="page"{% endif %}>Meus agendamentos</a>
                     {% elif usuario.papel == 'barbeiro' %}
-                        <a href="{{ url_for('barbeiro_agenda') }}">Minha agenda</a>
+                        <a href="{{ url_for('barbeiro_agenda') }}" class="{% if request.endpoint == 'barbeiro_agenda' %}nav-active{% endif %}" {% if request.endpoint == 'barbeiro_agenda' %}aria-current="page"{% endif %}>Minha agenda</a>
                     {% elif usuario.papel == 'admin' %}
-                        <a href="{{ url_for('admin_agendamentos') }}">Agendamentos</a>
-                        <a href="{{ url_for('admin_servicos') }}">Serviços</a>
-                        <a href="{{ url_for('admin_barbeiros') }}">Barbeiros</a>
+                        <a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint == 'admin_dashboard' %}nav-active{% endif %}" {% if request.endpoint == 'admin_dashboard' %}aria-current="page"{% endif %}>Painel</a>
+                        <a href="{{ url_for('admin_agendamentos') }}" class="{% if request.endpoint == 'admin_agendamentos' %}nav-active{% endif %}" {% if request.endpoint == 'admin_agendamentos' %}aria-current="page"{% endif %}>Agendamentos</a>
+                        <a href="{{ url_for('admin_servicos') }}" class="{% if request.endpoint == 'admin_servicos' %}nav-active{% endif %}" {% if request.endpoint == 'admin_servicos' %}aria-current="page"{% endif %}>Serviços</a>
+                        <a href="{{ url_for('admin_barbeiros') }}" class="{% if request.endpoint == 'admin_barbeiros' %}nav-active{% endif %}" {% if request.endpoint == 'admin_barbeiros' %}aria-current="page"{% endif %}>Barbeiros</a>
                     {% endif %}
                     <span class="nav-user">{{ usuario.nome }}</span>
-                    <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Sair</a>
+                    <form method="post" action="{{ url_for('logout') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-ghost btn-sm">Sair</button>
+                    </form>
                 {% else %}
                     <a href="{{ url_for('index') }}">Início</a>
                     <a href="{{ url_for('login') }}" class="btn btn-ghost btn-sm">Entrar</a>

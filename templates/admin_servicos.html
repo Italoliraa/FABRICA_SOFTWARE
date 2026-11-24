@@ -7,6 +7,7 @@
     <div class="card">
         <h2>Novo serviço</h2>
         <form method="post" action="{{ url_for('admin_servico_salvar') }}" class="form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Nome <input type="text" name="nome" required></label>
             <label>Descrição <input type="text" name="descricao"></label>
             <label>Duração (minutos) <input type="number" name="duracao_min" min="5" step="5" required></label>
@@ -31,6 +32,7 @@
                             <details>
                                 <summary class="btn btn-ghost btn-sm">Editar</summary>
                                 <form method="post" action="{{ url_for('admin_servico_salvar') }}" class="form edit-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="id" value="{{ s.id }}">
                                     <label>Nome <input type="text" name="nome" value="{{ s.nome }}" required></label>
                                     <label>Descrição <input type="text" name="descricao" value="{{ s.descricao or '' }}"></label>
@@ -40,6 +42,7 @@
                                 </form>
                             </details>
                             <form method="post" action="{{ url_for('admin_servico_excluir', sid=s.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
                             </form>
                         </td>

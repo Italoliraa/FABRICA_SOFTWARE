@@ -7,10 +7,23 @@
     <div class="card">
         <h2>Novo barbeiro</h2>
         <form method="post" action="{{ url_for('admin_barbeiro_salvar') }}" class="form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Nome <input type="text" name="nome" required></label>
             <label>Especialidade <input type="text" name="especialidade"></label>
             <label>E-mail de acesso <input type="email" name="email" placeholder="opcional, cria login"></label>
-            <label>Senha inicial <input type="text" name="senha" placeholder="padrão: barbeiro123"></label>
+            <label>Senha inicial <input type="password" name="senha" minlength="12" maxlength="128" autocomplete="new-password"></label>
+            <fieldset class="availability-fields">
+                <legend>Dias de atendimento</legend>
+                <div class="days-grid">
+                    {% for dia, nome in dias_semana %}
+                    <label class="check"><input type="checkbox" name="dias" value="{{ dia }}" {% if dia < 6 %}checked{% endif %}> {{ nome }}</label>
+                    {% endfor %}
+                </div>
+                <div class="time-range">
+                    <label>Início <input type="time" name="hora_inicio" value="09:00" required></label>
+                    <label>Fim <input type="time" name="hora_fim" value="19:00" required></label>
+                </div>
+            </fieldset>
             <label class="check"><input type="checkbox" name="ativo" checked> Ativo</label>
             <button type="submit" class="btn btn-primary btn-block">Cadastrar</button>
         </form>
@@ -32,16 +45,30 @@
                             <details>
                                 <summary class="btn btn-ghost btn-sm">Editar</summary>
                                 <form method="post" action="{{ url_for('admin_barbeiro_salvar') }}" class="form edit-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="id" value="{{ b.id }}">
                                     <label>Nome <input type="text" name="nome" value="{{ b.nome }}" required></label>
                                     <label>Especialidade <input type="text" name="especialidade" value="{{ b.especialidade or '' }}"></label>
                                     <label>E-mail <input type="email" name="email" value="{{ b.email or '' }}"></label>
-                                    <label>Nova senha <input type="text" name="senha" placeholder="deixe em branco p/ manter"></label>
+                                    <label>Nova senha <input type="password" name="senha" minlength="12" maxlength="128" autocomplete="new-password" placeholder="deixe em branco para manter"></label>
+                                    <fieldset class="availability-fields">
+                                        <legend>Dias de atendimento</legend>
+                                        <div class="days-grid">
+                                            {% for dia, nome in dias_semana %}
+                                            <label class="check"><input type="checkbox" name="dias" value="{{ dia }}" {% if b.disponibilidade|selectattr('dia_semana', 'equalto', dia)|list %}checked{% endif %}> {{ nome }}</label>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="time-range">
+                                            <label>Início <input type="time" name="hora_inicio" value="{{ b.disponibilidade[0].hora_inicio if b.disponibilidade else '09:00' }}" required></label>
+                                            <label>Fim <input type="time" name="hora_fim" value="{{ b.disponibilidade[0].hora_fim if b.disponibilidade else '19:00' }}" required></label>
+                                        </div>
+                                    </fieldset>
                                     <label class="check"><input type="checkbox" name="ativo" {% if b.ativo %}checked{% endif %}> Ativo</label>
                                     <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
                                 </form>
                             </details>
                             <form method="post" action="{{ url_for('admin_barbeiro_excluir', bid=b.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
                             </form>
                         </td>

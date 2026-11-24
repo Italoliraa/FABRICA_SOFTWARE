@@ -44,8 +44,7 @@ Enquanto isso, o barbeiro consegue acompanhar sua agenda e o administrador possu
 
 * Consultar serviços disponíveis;
 * Visualizar preço e duração dos serviços;
-* Selecionar barbeiro;
-* Consultar horários disponíveis;
+* Consultar barbeiros, dias de atendimento e horários livres;
 * Realizar agendamentos;
 * Visualizar seus agendamentos;
 * Cancelar agendamentos.
@@ -59,12 +58,15 @@ Enquanto isso, o barbeiro consegue acompanhar sua agenda e o administrador possu
 
 ### 🔐 Administrador
 
+* Consultar um painel de faturamento, ocupação, serviços mais procurados e cancelamentos;
+* Filtrar indicadores por período e exportar relatórios em CSV;
+* O faturamento soma o preço registrado para serviços concluídos; o sistema não controla pagamentos;
 * Cadastrar barbeiros;
 * Editar e excluir barbeiros;
 * Cadastrar serviços;
 * Definir preço e duração dos serviços;
 * Editar e excluir serviços;
-* Configurar horários disponíveis;
+* Configurar dias e horários de atendimento de cada barbeiro;
 * Visualizar os agendamentos da barbearia.
 
 ---
@@ -98,7 +100,12 @@ Enquanto isso, o barbeiro consegue acompanhar sua agenda e o administrador possu
              Agenda do barbeiro
 ```
 
-O sistema possui uma regra importante: **um mesmo barbeiro não pode possuir dois agendamentos para o mesmo horário**, evitando conflitos na agenda.
+O sistema reserva o intervalo completo de cada serviço: agendamentos do mesmo barbeiro não podem se sobrepor, mesmo quando começam em horários diferentes. A confirmação é serializada no banco de dados para impedir que solicitações simultâneas reservem o mesmo intervalo. A duração usada na reserva fica registrada no agendamento, sem mudar quando o serviço for editado depois.
+
+A disponibilidade do barbeiro também é validada por dia da semana e faixa de
+horário. Quando o barbeiro não atende na data escolhida, o sistema informa os
+dias de atendimento configurados. Quando um horário está ocupado, os horários
+livres daquele dia são exibidos para o cliente.
 
 ---
 
@@ -150,6 +157,9 @@ O BarberAgenda foi planejado considerando alguns requisitos importantes:
 
 * 🔐 Autenticação de usuários;
 * 👥 Controle de acesso por perfil;
+* 🔑 Senhas protegidas com scrypt e migração de hashes antigos no login;
+* 🛡️ Proteção CSRF em formulários e ações de escrita;
+* 🔒 Chaves de sessão configuradas pelo ambiente, sem segredo fixo no código;
 * ✅ Validação dos dados enviados;
 * 🚫 Prevenção de horários conflitantes;
 * 📱 Interface responsiva;
@@ -157,6 +167,22 @@ O BarberAgenda foi planejado considerando alguns requisitos importantes:
 * ⚡ Tempo de resposta adequado;
 * 🧩 Separação entre frontend, backend e banco de dados;
 * 🌱 Versionamento utilizando Git e GitHub.
+
+### Mudanças de segurança implementadas
+
+* A chave fixa de sessão foi removida. Em desenvolvimento, uma chave aleatória
+  temporária é gerada; em produção, `BARBERAGENDA_SECRET_KEY` é obrigatório.
+* As senhas novas são armazenadas com scrypt. Hashes SHA-256 antigos são
+  atualizados para scrypt depois de um login válido.
+* Credenciais padrão de demonstração foram removidas. Um banco novo exige uma
+  senha inicial de administrador configurada no ambiente; contas de exemplo
+  podem ser criadas somente em desenvolvimento.
+* Formulários que alteram dados validam CSRF. Sair da conta agora usa POST,
+  não GET.
+* O modo debug é restrito ao desenvolvimento; cookies de sessão recebem
+  `HttpOnly`, `SameSite=Lax` e, em produção, `Secure`.
+* Testes automatizados cobrem hashing, migração de senhas antigas, CSRF,
+  configuração de produção e fluxos existentes.
 
 ---
 
@@ -201,6 +227,38 @@ Para instalar as dependencias:
 
 ```bash
 pip install -r requirements.txt
+```
+
+### Configuração de segurança
+
+Antes de inicializar um banco novo, configure `BARBERAGENDA_ADMIN_PASSWORD`
+com uma senha de 12 a 128 caracteres. `BARBERAGENDA_ADMIN_EMAIL` pode definir
+o e-mail inicial do administrador. Em desenvolvimento, `BARBERAGENDA_DEMO_PASSWORD`
+é opcional e cria contas de exemplo com uma senha compartilhada; não configure
+essa variável em produção.
+
+Gere uma chave de sessão com:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Defina o resultado em `BARBERAGENDA_SECRET_KEY`. Em `APP_ENV=production`, a
+chave é obrigatória, os cookies de sessão usam HTTPS e o modo de depuração é
+desativado. Em desenvolvimento, se a chave não for definida, é gerada uma
+chave temporária que invalida as sessões quando o processo reinicia.
+O comando `python app.py` é apenas para desenvolvimento; em produção, use um
+servidor WSGI/Socket.IO apropriado.
+
+Senhas legadas em SHA-256 são verificadas e atualizadas para scrypt após um
+login válido. Contas já existentes mantêm suas senhas; redefina qualquer senha
+de demonstração conhecida antes de usar um banco antigo em produção.
+Formulários POST, inclusive sair da conta, exigem token CSRF.
+
+Execute os testes automatizados com:
+
+```bash
+python -m unittest discover -s tests -v
 ```
 
 O suporte depende do driver OpenCL fornecido pelo fabricante da GPU/CPU. A

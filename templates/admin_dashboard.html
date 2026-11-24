@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Painel administrativo{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Painel administrativo</h1>
+        <p class="muted">Indicadores da barbearia de {{ inicio|data_br }} a {{ fim|data_br }}.</p>
+    </div>
+</div>
+
+<section class="dashboard-tools card" aria-label="Filtros e exportação">
+    <form method="get" action="{{ url_for('admin_dashboard') }}" class="dashboard-filter">
+        <label>De
+            <input type="date" name="inicio" value="{{ inicio }}" required>
+        </label>
+        <label>Até
+            <input type="date" name="fim" value="{{ fim }}" required>
+        </label>
+        <button type="submit" class="btn btn-ghost">Aplicar período</button>
+    </form>
+    <a class="btn btn-primary"
+       href="{{ url_for('admin_relatorio_exportar', inicio=inicio, fim=fim) }}">
+        Exportar relatório CSV
+    </a>
+</section>
+
+<section class="dashboard-metrics" aria-label="Indicadores">
+    <article class="card dashboard-metric">
+        <span class="muted">Faturamento (concluídos)</span>
+        <strong class="dashboard-value">{{ metricas.faturamento|moeda }}</strong>
+        <span class="muted">Soma dos preços registrados; pagamentos não são controlados</span>
+    </article>
+    <article class="card dashboard-metric">
+        <span class="muted">Ocupação</span>
+        {% if taxa_ocupacao is not none %}
+        <strong class="dashboard-value">{{ "%.1f"|format(taxa_ocupacao) }}%</strong>
+        <span class="muted">Tempo reservado sobre o expediente cadastrado</span>
+        {% else %}
+        <strong class="dashboard-value">—</strong>
+        <span class="muted">Sem expediente cadastrado para o período</span>
+        {% endif %}
+    </article>
+    <article class="card dashboard-metric">
+        <span class="muted">Cancelamentos</span>
+        <strong class="dashboard-value">{{ metricas.cancelamentos }}</strong>
+        <span class="muted">{{ "%.1f"|format(taxa_cancelamento) }}% dos {{ metricas.total }} agendamentos</span>
+    </article>
+    <article class="card dashboard-metric">
+        <span class="muted">Agendamentos no período</span>
+        <strong class="dashboard-value">{{ metricas.total }}</strong>
+        <span class="muted">Inclui todos os status</span>
+    </article>
+</section>
+
+<section class="dashboard-panels">
+    <article class="card">
+        <div class="section-head">
+            <h2>Serviços mais procurados</h2>
+            <p>Quantidade de agendamentos por serviço, incluindo cancelamentos.</p>
+        </div>
+        {% if servicos_populares %}
+        <div class="report-bars">
+            {% for servico in servicos_populares %}
+            <div class="report-bar-row">
+                <div class="report-bar-label">
+                    <span>{{ servico.servico_nome }}</span>
+                    <strong>{{ servico.quantidade }}</strong>
+                </div>
+                <div class="report-bar-track" role="img"
+                     aria-label="{{ servico.quantidade }} agendamentos">
+                    <span style="width: {{ (servico.quantidade / maior_demanda * 100)|round(1) }}%"></span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">Não há agendamentos neste período.</p>
+        {% endif %}
+    </article>
+
+    <article class="card dashboard-cancellation">
+        <div class="section-head">
+            <h2>Resumo de cancelamentos</h2>
+            <p>Pedidos cancelados no período selecionado.</p>
+        </div>
+        <strong class="dashboard-value">{{ metricas.cancelamentos }}</strong>
+        <p class="muted">
+            {% if metricas.total %}
+            {{ "%.1f"|format(taxa_cancelamento) }}% do total de {{ metricas.total }} agendamentos.
+            {% else %}
+            Nenhum agendamento registrado no período.
+            {% endif %}
+        </p>
+    </article>
+</section>
+{% endblock %}

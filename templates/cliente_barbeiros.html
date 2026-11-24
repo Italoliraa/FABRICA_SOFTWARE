@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Barbeiros{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Barbeiros</h1>
+        <p class="muted">Escolha um profissional e consulte a disponibilidade para uma data.</p>
+    </div>
+</div>
+
+{% if barbeiros %}
+<div class="grid grid-barbeiros cliente-barbeiros-grid">
+    {% for b in barbeiros %}
+    <article class="card cliente-barbeiro-card">
+        <div class="barbeiro-card">
+            <div class="avatar">{{ b.nome[0]|upper }}</div>
+            <div>
+                <h2>{{ b.nome }}</h2>
+                {% if b.especialidade %}<p class="muted">{{ b.especialidade }}</p>{% endif %}
+            </div>
+        </div>
+
+        <form method="get" action="{{ url_for('cliente_barbeiros') }}" class="form form-inline barbeiro-consulta">
+            <input type="hidden" name="barbeiro_id" value="{{ b.id }}">
+            {% if barbeiro_selecionado == b.id %}
+            <input type="hidden" name="toggle_data" value="{{ data }}">
+            {% endif %}
+            <label>Consultar data
+                <input type="date" name="data" value="{{ data }}" min="{{ hoje }}" required>
+            </label>
+            <button type="submit" class="btn btn-ghost">Ver disponibilidade</button>
+        </form>
+
+        {% if barbeiro_selecionado == b.id %}
+        <div class="barbeiro-disponibilidade">
+            <h3>Disponibilidade em {{ data|data_br }}</h3>
+            {% if not expediente %}
+            <div class="availability-message">
+                Este barbeiro não atende neste dia.
+                <strong>Dias de atendimento:</strong> {{ dias_atendimento|join(', ') or 'Nenhum dia cadastrado' }}.
+            </div>
+            {% elif not servicos %}
+            <div class="availability-message">
+                Não há serviços cadastrados para concluir um agendamento.
+            </div>
+            {% elif horarios %}
+            <p class="muted">Horários livres:</p>
+            {% set horarios_manha = horarios|select('lt', '12:00')|list %}
+            {% set horarios_tarde = horarios|select('ge', '12:00')|list %}
+            {% if horarios_manha %}
+            <div class="periodo-horarios">
+                <h3>Manhã</h3>
+                <div class="slots">
+                    {% for horario in horarios_manha %}
+                    <button class="slot-link" type="button" title="Agendar às {{ horario }}"
+                        data-barbeiro-id="{{ b.id }}" data-barbeiro-nome="{{ b.nome }}"
+                        data-data="{{ data }}" data-hora="{{ horario }}"
+                        data-servicos="{{ servicos_por_horario[horario]|join(',') }}">{{ horario }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if horarios_tarde %}
+            <div class="periodo-horarios">
+                <h3>Tarde</h3>
+                <div class="slots">
+                    {% for horario in horarios_tarde %}
+                    <button class="slot-link" type="button" title="Agendar às {{ horario }}"
+                        data-barbeiro-id="{{ b.id }}" data-barbeiro-nome="{{ b.nome }}"
+                        data-data="{{ data }}" data-hora="{{ horario }}"
+                        data-servicos="{{ servicos_por_horario[horario]|join(',') }}">{{ horario }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="availability-message">
+                O barbeiro atende neste dia, mas não há horários livres. Consulte outra data.
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card empty"><p>Nenhum barbeiro disponível no momento.</p></div>
+{% endif %}
+
+{% if servicos %}
+<dialog class="servico-dialog" id="servico-dialog">
+    <form method="post" action="{{ url_for('cliente_novo_agendamento') }}" class="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h2>Escolha o serviço</h2>
+        <p class="muted" id="servico-dialog-detalhes"></p>
+        <input type="hidden" name="acao" value="confirmar">
+        <input type="hidden" name="barbeiro_id" id="dialog-barbeiro-id">
+        <input type="hidden" name="data" id="dialog-data">
+        <input type="hidden" name="hora" id="dialog-hora">
+        <label>Serviço
+            <select name="servico_id" required>
+                <option value="">Selecione...</option>
+                {% for servico in servicos %}
+                <option value="{{ servico.id }}">{{ servico.nome }} — {{ servico.preco|moeda }} ({{ servico.duracao_min }} min)</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="servico-dialog-actions">
+            <button type="button" class="btn btn-ghost" id="fechar-servico-dialog">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Confirmar agendamento</button>
+        </div>
+    </form>
+</dialog>
+<script>
+    const servicoDialog = document.getElementById("servico-dialog");
+    const detalhesDialog = document.getElementById("servico-dialog-detalhes");
+    const servicoSelect = servicoDialog.querySelector('select[name="servico_id"]');
+    const opcoesServico = Array.from(servicoSelect.options).filter(function(opcao) {
+        return opcao.value;
+    });
+    opcoesServico.forEach(function(opcao) {
+        opcao.dataset.rotuloOriginal = opcao.textContent;
+    });
+
+    document.querySelectorAll(".slot-link").forEach(function(botao) {
+        botao.addEventListener("click", function() {
+            const servicosDisponiveis = botao.dataset.servicos.split(",");
+            opcoesServico.forEach(function(opcao) {
+                const disponivel = servicosDisponiveis.includes(opcao.value);
+                opcao.disabled = !disponivel;
+                opcao.textContent = disponivel
+                    ? opcao.dataset.rotuloOriginal
+                    : opcao.dataset.rotuloOriginal + " — indisponível neste horário";
+            });
+            servicoSelect.value = "";
+            document.getElementById("dialog-barbeiro-id").value = botao.dataset.barbeiroId;
+            document.getElementById("dialog-data").value = botao.dataset.data;
+            document.getElementById("dialog-hora").value = botao.dataset.hora;
+            detalhesDialog.textContent =
+                botao.dataset.barbeiroNome + " · " +
+                botao.dataset.data.split("-").reverse().join("/") + " às " +
+                botao.dataset.hora;
+            servicoDialog.showModal();
+            servicoSelect.focus();
+        });
+    });
+
+    document.getElementById("fechar-servico-dialog").addEventListener("click", function() {
+        servicoDialog.close();
+    });
+
+    servicoDialog.addEventListener("click", function(event) {
+        if (event.target === servicoDialog) {
+            servicoDialog.close();
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
