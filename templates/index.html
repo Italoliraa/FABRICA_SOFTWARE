@@ -2,16 +2,19 @@
 {% block title %}Início{% endblock %}
 {% block content %}
 <section class="hero">
-    <div class="hero-text">
-        <p class="eyebrow">Barbearia & Navalha</p>
-        <h1>Seu próximo corte,<br>a um clique de distância.</h1>
-        <p class="lead">Escolha o serviço, o barbeiro e o horário. Simples, rápido e sem complicação.</p>
-        <div class="hero-actions">
-            {% if usuario and usuario.papel == 'cliente' %}
-                <a href="{{ url_for('cliente_novo_agendamento') }}" class="btn btn-primary">Agendar horário</a>
-            {% elif not usuario %}
-                <a href="{{ url_for('login') }}" class="btn btn-primary">Entrar para agendar</a>
-            {% endif %}
+    <div class="hero-layout">
+        <div class="hero-text">
+            <p class="eyebrow">Barbearia & Navalha</p>
+            <h1>Seu próximo corte,<br>a um clique de distância.</h1>
+            <p class="lead">Escolha o serviço, o barbeiro e o horário. Simples, rápido e sem complicação.</p>
+            <div class="hero-actions">
+                {% if usuario and usuario.papel == 'cliente' %}
+                    <a href="{{ url_for('cliente_novo_agendamento') }}" class="btn btn-primary">Agendar horário</a>
+                {% elif not usuario %}
+                    <a href="{{ url_for('cadastro') }}" class="btn btn-primary">Criar minha conta</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-ghost">Já tenho conta</a>
+                {% endif %}
+            </div>
         </div>
     </div>
 </section>
@@ -23,17 +26,45 @@
     </div>
     <div class="grid grid-servicos">
         {% for s in servicos %}
-        <article class="card servico-card">
+        <a class="card servico-card servico-card-link" href="{{ url_for('cliente_novo_agendamento', servico_id=s.id) }}" aria-label="Agendar {{ s.nome }}">
             <h3>{{ s.nome }}</h3>
             {% if s.descricao %}<p class="muted">{{ s.descricao }}</p>{% endif %}
             <div class="servico-meta">
                 <span class="badge">{{ s.duracao_min }} min</span>
                 <span class="preco">{{ s.preco|moeda }}</span>
             </div>
-        </article>
+        </a>
         {% else %}
         <p class="muted">Nenhum serviço cadastrado ainda.</p>
         {% endfor %}
+    </div>
+</section>
+
+<section class="section" id="localizacao">
+    <div class="section-head">
+        <h2>Onde estamos</h2>
+        <p>Este endereço é apenas um exemplo ilustrativo, não o endereço real da barbearia.</p>
+    </div>
+    <div class="location-layout">
+        <article class="card location-details">
+            <span class="badge">Localização de exemplo</span>
+            <h3>BarberAgenda · Unidade ilustrativa</h3>
+            <address>
+                Avenida Paulista, 1000<br>
+                Bela Vista, São Paulo - SP<br>
+                CEP 01310-100
+            </address>
+            <a class="btn btn-ghost" href="https://www.google.com/maps/search/?api=1&amp;query=Avenida+Paulista%2C+1000%2C+Bela+Vista%2C+S%C3%A3o+Paulo+-+SP%2C+01310-100" target="_blank" rel="noopener noreferrer">Abrir no Google Maps</a>
+        </article>
+        <div class="map-frame">
+            <iframe
+                title="Mapa de localização de exemplo da BarberAgenda"
+                src="https://maps.google.com/maps?q=Avenida+Paulista%2C+1000%2C+Bela+Vista%2C+S%C3%A3o+Paulo+-+SP%2C+01310-100&amp;output=embed"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                allowfullscreen>
+            </iframe>
+        </div>
     </div>
 </section>
 

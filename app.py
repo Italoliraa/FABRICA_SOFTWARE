@@ -3,9 +3,12 @@ import csv
 import io
 import math
 import os
+import re
 import secrets
+import sqlite3
 from datetime import date, datetime, timedelta
 from functools import wraps
+from urllib.parse import parse_qs, urlsplit
 
 from flask import (
     Flask,
@@ -106,6 +109,86 @@ def usuario_atual():
     return u
 
 
+def turnos_do_expediente(expediente):
+    if not expediente:
+        return []
+
+    turnos = []
+    if expediente["hora_inicio"] < "12:00":
+        turnos.append("manhã")
+    if expediente["hora_fim"] > "12:00":
+        turnos.append("tarde")
+    return turnos
+
+
+def proxima_pagina_agendamento(valor):
+    if not valor:
+        return None
+
+    try:
+        destino = urlsplit(valor)
+    except ValueError:
+        return None
+
+    if destino.scheme or destino.netloc or destino.path != url_for(
+        "cliente_novo_agendamento"
+    ):
+        return None
+
+    parametros = parse_qs(destino.query)
+    if set(parametros) - {"servico_id", "barbeiro_id", "data", "hora"}:
+        return None
+
+    servico_ids = parametros.get("servico_id", [])
+    if (
+        len(servico_ids) != 1
+        or len(servico_ids[0]) > 19
+        or not servico_ids[0].isascii()
+        or not servico_ids[0].isdigit()
+    ):
+        return None
+
+    servico_id = int(servico_ids[0])
+    if servico_id < 1:
+        return None
+
+    argumentos = {"servico_id": servico_id}
+    barbeiro_ids = parametros.get("barbeiro_id", [])
+    if barbeiro_ids:
+        if (
+            len(barbeiro_ids) != 1
+            or len(barbeiro_ids[0]) > 19
+            or not barbeiro_ids[0].isascii()
+            or not barbeiro_ids[0].isdigit()
+            or int(barbeiro_ids[0]) < 1
+        ):
+            return None
+        argumentos["barbeiro_id"] = int(barbeiro_ids[0])
+
+    datas = parametros.get("data", [])
+    if datas:
+        if len(datas) != 1:
+            return None
+        try:
+            datetime.strptime(datas[0], "%Y-%m-%d")
+        except ValueError:
+            return None
+        argumentos["data"] = datas[0]
+
+    horas = parametros.get("hora", [])
+    if horas:
+        if (
+            len(horas) != 1
+            or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", horas[0])
+            or "barbeiro_id" not in argumentos
+            or "data" not in argumentos
+        ):
+            return None
+        argumentos["hora"] = horas[0]
+
+    return url_for("cliente_novo_agendamento", **argumentos)
+
+
 def login_obrigatorio(*papeis):
     def decorator(f):
         @wraps(f)
@@ -170,6 +253,17 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    next_url = proxima_pagina_agendamento(request.values.get("next", ""))
+    usuario = usuario_atual()
+    if usuario:
+        if usuario["papel"] == "cliente" and next_url:
+            return redirect(next_url)
+        if usuario["papel"] == "admin":
+            return redirect(url_for("admin_dashboard"))
+        if usuario["papel"] == "barbeiro":
+            return redirect(url_for("barbeiro_agenda"))
+        return redirect(url_for("cliente_agendamentos"))
+
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         senha = request.form.get("senha", "")
@@ -191,20 +285,72 @@ def login():
             session.clear()
             session["usuario_id"] = u["id"]
             flash(f"Bem-vindo, {u['nome']}!", "sucesso")
+            if u["papel"] == "cliente" and next_url:
+                return redirect(next_url)
             if u["papel"] == "admin":
                 return redirect(url_for("admin_dashboard"))
             if u["papel"] == "barbeiro":
                 return redirect(url_for("barbeiro_agenda"))
             return redirect(url_for("cliente_agendamentos"))
         flash("E-mail ou senha invalidos.", "erro")
-    return render_template("login.html")
+    return render_template("login.html", next_url=next_url)
 
 
-@app.route("/cadastro")
+@app.route("/cadastro", methods=["GET", "POST"])
 def cadastro():
-    """Cadastro de clientes desativado; redireciona para o login."""
-    flash("O cadastro de clientes foi desativado. Use uma conta existente.", "erro")
-    return redirect(url_for("login"))
+    next_url = proxima_pagina_agendamento(request.values.get("next", ""))
+    usuario = usuario_atual()
+    if usuario:
+        if usuario["papel"] == "cliente" and next_url:
+            return redirect(next_url)
+        if usuario["papel"] == "admin":
+            return redirect(url_for("admin_dashboard"))
+        if usuario["papel"] == "barbeiro":
+            return redirect(url_for("barbeiro_agenda"))
+        return redirect(url_for("cliente_agendamentos"))
+
+    if request.method == "GET":
+        return render_template("cadastro.html", next_url=next_url)
+
+    nome = request.form.get("nome", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    telefone = request.form.get("telefone", "").strip()
+    digitos_telefone = re.sub(r"\D", "", telefone)
+    senha = request.form.get("senha", "")
+
+    if not nome or len(nome) > 120 or not re.fullmatch(
+        r"[^@\s]+@[^@\s]+\.[^@\s]+", email
+    ):
+        flash("Informe seu nome e um e-mail valido.", "erro")
+        return render_template("cadastro.html", next_url=next_url)
+    if len(telefone) > 25 or not 10 <= len(digitos_telefone) <= 15:
+        flash("Informe um numero de celular valido com DDD.", "erro")
+        return render_template("cadastro.html", next_url=next_url)
+    if not senha_forte(senha):
+        flash("A senha deve ter entre 12 e 128 caracteres.", "erro")
+        return render_template("cadastro.html", next_url=next_url)
+
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            """INSERT INTO usuarios (nome, email, senha, papel, telefone)
+               VALUES (?, ?, ?, 'cliente', ?)""",
+            (nome, email, hash_senha(senha), telefone),
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        flash("Ja existe uma conta com este e-mail.", "erro")
+        return render_template("cadastro.html", next_url=next_url)
+    finally:
+        conn.close()
+
+    session.clear()
+    session["usuario_id"] = cursor.lastrowid
+    flash(f"Conta criada. Bem-vindo, {nome}!", "sucesso")
+    if next_url:
+        return redirect(next_url)
+    return redirect(url_for("cliente_agendamentos"))
 
 
 @app.route("/logout", methods=["POST"])
@@ -241,6 +387,7 @@ def cliente_barbeiros():
     horarios = []
     servicos_por_horario = {}
     expediente = None
+    turnos_expediente = []
     dias_atendimento = []
 
     for barbeiro in barbeiros:
@@ -254,6 +401,7 @@ def cliente_barbeiros():
                 ),
                 None,
             )
+            turnos_expediente = turnos_do_expediente(expediente)
             dias_atendimento = [
                 nome for dia, nome in DIAS_SEMANA
                 if any(item["dia_semana"] == dia for item in disponibilidade)
@@ -297,6 +445,7 @@ def cliente_barbeiros():
         data=data,
         hoje=hoje,
         expediente=expediente,
+        turnos_expediente=turnos_expediente,
         dias_atendimento=dias_atendimento,
         horarios=horarios,
         servicos_por_horario=servicos_por_horario,
@@ -304,10 +453,31 @@ def cliente_barbeiros():
 
 
 @app.route("/agendar", methods=["GET", "POST"])
-@login_obrigatorio("cliente")
 def cliente_novo_agendamento():
-    conn = get_db()
+    usuario = usuario_atual()
+    if usuario and usuario["papel"] != "cliente":
+        abort(403)
+
     confirmar = request.method == "POST" and request.form.get("acao") == "confirmar"
+    if confirmar and not usuario:
+        flash("Entre ou crie sua conta para confirmar o agendamento.", "erro")
+        argumentos = {
+            "servico_id": request.form.get("servico_id", type=int),
+            "barbeiro_id": request.form.get("barbeiro_id", type=int),
+            "data": request.form.get("data", ""),
+            "hora": request.form.get("hora", ""),
+        }
+        proxima_pagina = proxima_pagina_agendamento(
+            url_for(
+                "cliente_novo_agendamento",
+                **{chave: valor for chave, valor in argumentos.items() if valor},
+            )
+        )
+        if proxima_pagina:
+            return redirect(url_for("login", next=proxima_pagina))
+        return redirect(url_for("login"))
+
+    conn = get_db()
     if confirmar:
         conn.execute("BEGIN IMMEDIATE")
 
@@ -328,6 +498,7 @@ def cliente_novo_agendamento():
     data = request.values.get("data", hoje)
     horarios = []
     expediente = None
+    turnos_expediente = []
     dias_atendimento = []
     if barbeiro_id and data:
         try:
@@ -340,6 +511,7 @@ def cliente_novo_agendamento():
                 (item for item in disponibilidade if item["dia_semana"] == dia_semana),
                 None,
             )
+            turnos_expediente = turnos_do_expediente(expediente)
             dias_atendimento = [
                 nome for dia, nome in DIAS_SEMANA
                 if any(item["dia_semana"] == dia for item in disponibilidade)
@@ -410,6 +582,7 @@ def cliente_novo_agendamento():
         data=data,
         hoje=hoje,
         expediente=expediente,
+        turnos_expediente=turnos_expediente,
         dias_atendimento=dias_atendimento,
         hora_selecionada=hora_selecionada,
     )

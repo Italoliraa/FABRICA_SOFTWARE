@@ -40,6 +40,12 @@
 {% if barbeiro_id and data %}
 <div class="card">
     <h2>{{ barbeiros|selectattr('id', 'equalto', barbeiro_id)|map(attribute='nome')|first }} — {{ data|data_br }}</h2>
+    {% if turnos_expediente|length == 1 %}
+    <div class="availability-message">
+        O barbeiro atende neste dia somente no turno da {{ turnos_expediente[0] }}.
+        Não atende no outro turno; os horários exibidos são apenas deste turno.
+    </div>
+    {% endif %}
     {% if not expediente %}
     <div class="availability-message">
         Este barbeiro não atende neste dia.
@@ -90,7 +96,9 @@
         {% if not servico_id %}
         <p class="flash flash-erro">Selecione um serviço acima antes de confirmar.</p>
         {% endif %}
-        <button type="submit" class="btn btn-primary">Confirmar agendamento</button>
+        <button type="submit" class="btn btn-primary">
+            {% if usuario %}Confirmar agendamento{% else %}Entrar ou criar conta para agendar{% endif %}
+        </button>
     </form>
     {% else %}
     <p class="muted">Nenhum horário disponível para esta data. Tente outro dia.</p>

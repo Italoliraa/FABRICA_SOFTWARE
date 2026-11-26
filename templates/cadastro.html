@@ -7,21 +7,22 @@
         <p class="muted">Cadastre-se como cliente para agendar seus horários.</p>
         <form method="post" class="form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
             <label>Nome completo
-                <input type="text" name="nome" required autofocus>
+                <input type="text" name="nome" value="{{ request.form.get('nome', '') }}" autocomplete="name" maxlength="120" required autofocus>
             </label>
             <label>E-mail
-                <input type="email" name="email" required>
+                <input type="email" name="email" value="{{ request.form.get('email', '') }}" autocomplete="email" maxlength="254" required>
             </label>
-            <label>Telefone
-                <input type="text" name="telefone" placeholder="(00) 00000-0000">
+            <label>Celular com DDD
+                <input type="tel" name="telefone" value="{{ request.form.get('telefone', '') }}" autocomplete="tel" inputmode="tel" maxlength="25" placeholder="(00) 00000-0000" required>
             </label>
             <label>Senha
-                <input type="password" name="senha" required>
+                <input type="password" name="senha" autocomplete="new-password" minlength="12" maxlength="128" required>
             </label>
             <button type="submit" class="btn btn-primary btn-block">Criar conta</button>
         </form>
-        <p class="auth-alt">Já tem conta? <a href="{{ url_for('login') }}">Entrar</a></p>
+        <p class="auth-alt">Já tem conta? <a href="{{ url_for('login', next=next_url) if next_url else url_for('login') }}">Entrar</a></p>
     </div>
 </div>
 {% endblock %}

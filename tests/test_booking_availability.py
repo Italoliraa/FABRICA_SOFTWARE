@@ -13,6 +13,7 @@ from hashlib import sha256
 from pathlib import Path
 from threading import Barrier
 from unittest import mock
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import db
 
@@ -143,14 +144,14 @@ class BookingAvailabilityTests(unittest.TestCase):
         )
 
     @staticmethod
-    def _csrf_token(client):
-        response = client.get("/login")
+    def _csrf_token(client, path="/login"):
+        response = client.get(path)
         match = re.search(
             r'name="csrf_token" value="([^"]+)"',
             response.get_data(as_text=True),
         )
         if match is None:
-            raise AssertionError("O formulário de login não incluiu um token CSRF")
+            raise AssertionError(f"O formulário em {path} não incluiu um token CSRF")
         return match.group(1)
 
     def _login(self, client, email, password):
@@ -160,7 +161,7 @@ class BookingAvailabilityTests(unittest.TestCase):
             data={"email": email, "senha": password, "csrf_token": token},
         )
         self.assertEqual(response.status_code, 302)
-        return self._csrf_token(client)
+        return self._csrf_token(client, response.location)
 
     def test_password_hash_uses_scrypt(self):
         stored = db.hash_senha("StrongPassword!2026")
@@ -173,6 +174,304 @@ class BookingAvailabilityTests(unittest.TestCase):
             db.verificar_senha(stored, "IncorrectPassword!"),
             (False, False),
         )
+
+    def test_cliente_pode_se_cadastrar_com_email_e_celular(self):
+        email = f"novo-{secrets.token_hex(4)}@example.com"
+        password = "StrongPassword!2026"
+        with self.app.test_client() as client:
+            csrf_token = self._csrf_token(client, "/cadastro")
+            response = client.post(
+                "/cadastro",
+                data={
+                    "csrf_token": csrf_token,
+                    "nome": "Novo Cliente",
+                    "email": email,
+                    "telefone": "(11) 98765-4321",
+                    "senha": password,
+                },
+            )
+
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.location, "/meus-agendamentos")
+            with client.session_transaction() as session:
+                user_id = session["usuario_id"]
+
+        conn = db.get_db()
+        user = conn.execute(
+            "SELECT * FROM usuarios WHERE id=?", (user_id,)
+        ).fetchone()
+        conn.close()
+        self.assertEqual(user["email"], email)
+        self.assertEqual(user["telefone"], "(11) 98765-4321")
+        self.assertEqual(user["papel"], "cliente")
+        self.assertTrue(db.verificar_senha(user["senha"], password)[0])
+
+    def test_cadastro_rejeita_celular_invalido_senha_fraca_e_email_repetido(self):
+        with self.app.test_client() as client:
+            csrf_token = self._csrf_token(client, "/cadastro")
+            invalid_data = {
+                "csrf_token": csrf_token,
+                "nome": "Novo Cliente",
+                "email": "cadastro-invalido@example.com",
+                "telefone": "123",
+                "senha": "StrongPassword!2026",
+            }
+            response = client.post("/cadastro", data=invalid_data)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(
+                "numero de celular valido",
+                response.get_data(as_text=True),
+            )
+
+            invalid_data.update(
+                email="cadastro-senha-fraca@example.com",
+                telefone="(11) 98765-4321",
+                senha="curta",
+            )
+            response = client.post("/cadastro", data=invalid_data)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("12 e 128 caracteres", response.get_data(as_text=True))
+
+            invalid_data.update(
+                email="joao@email.com",
+                senha="StrongPassword!2026",
+            )
+            response = client.post("/cadastro", data=invalid_data)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("Ja existe uma conta", response.get_data(as_text=True))
+
+    def test_cadastro_separado_e_link_disponivel_no_login(self):
+        with self.app.test_client() as client:
+            homepage = client.get("/").get_data(as_text=True)
+            signup = client.get("/cadastro").get_data(as_text=True)
+            login = client.get("/login").get_data(as_text=True)
+
+        self.assertNotIn('name="telefone"', homepage)
+        self.assertIn('name="telefone"', signup)
+        self.assertIn('href="/cadastro"', login)
+        self.assertIn("Você não tem cadastro?", login)
+        self.assertNotIn("Google", signup)
+        self.assertNotIn("Google", login)
+        self.assertNotIn("google_login", self.app.view_functions)
+        self.assertNotIn("google_callback", self.app.view_functions)
+
+    def test_card_de_servico_abre_agendamento_preselecionado_para_cliente_logado(self):
+        servico_id = self.servicos[30]
+        next_url = f"/agendar?servico_id={servico_id}"
+
+        with self.app.test_client() as client:
+            self._login(client, "joao@email.com", "ClientPassword!2026")
+            homepage = client.get("/").get_data(as_text=True)
+            response = client.get(next_url)
+
+        self.assertIn(f'href="{next_url}"', homepage)
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.get_data(as_text=True),
+            rf'<option value="{servico_id}" selected>',
+        )
+        self.assertIn('name="barbeiro_id"', response.get_data(as_text=True))
+
+    def test_agendamento_mostra_disponibilidade_antes_de_exigir_login(self):
+        servico_id = self.servicos[30]
+        next_url = f"/agendar?{urlencode({
+            'servico_id': servico_id,
+            'barbeiro_id': self.barbeiro_id,
+            'data': self.data,
+            'hora': '10:00',
+        })}"
+
+        with self.app.test_client() as client:
+            with mock.patch("app.horarios_disponiveis", return_value=["10:00"]):
+                response = client.get(next_url)
+                self.assertEqual(response.status_code, 200)
+                page = response.get_data(as_text=True)
+                self.assertIn("10:00", page)
+                self.assertIn(
+                    "Entrar ou criar conta para agendar",
+                    page,
+                )
+                csrf_token = re.search(
+                    r'name="csrf_token" value="([^"]+)"',
+                    page,
+                ).group(1)
+
+                response = client.post(
+                    "/agendar",
+                    data={
+                        "csrf_token": csrf_token,
+                        "acao": "confirmar",
+                        "servico_id": servico_id,
+                        "barbeiro_id": self.barbeiro_id,
+                        "data": self.data,
+                        "hora": "10:00",
+                    },
+                )
+                self.assertEqual(response.status_code, 302)
+                login_location = urlsplit(response.location)
+                self.assertEqual(login_location.path, "/login")
+                preserved_url = parse_qs(login_location.query)["next"][0]
+                preserved_query = parse_qs(urlsplit(preserved_url).query)
+                self.assertEqual(preserved_query["servico_id"], [str(servico_id)])
+                self.assertEqual(
+                    preserved_query["barbeiro_id"],
+                    [str(self.barbeiro_id)],
+                )
+                self.assertEqual(preserved_query["data"], [self.data])
+                self.assertEqual(preserved_query["hora"], ["10:00"])
+
+                login_page = client.get(response.location)
+                login_html = login_page.get_data(as_text=True)
+                self.assertIn('name="next"', login_html)
+
+                response = client.post(
+                    "/login",
+                    data={
+                        "csrf_token": self._csrf_token(client, response.location),
+                        "email": "joao@email.com",
+                        "senha": "ClientPassword!2026",
+                        "next": preserved_url,
+                    },
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(
+                    parse_qs(urlsplit(response.location).query),
+                    preserved_query,
+                )
+                booking_page = client.get(response.location)
+
+        self.assertEqual(booking_page.status_code, 200)
+        self.assertRegex(
+            booking_page.get_data(as_text=True),
+            rf'<input type="radio" name="hora" value="10:00" checked',
+        )
+        conn = db.get_db()
+        booking_count = conn.execute(
+            "SELECT COUNT(*) FROM agendamentos"
+        ).fetchone()[0]
+        conn.close()
+        self.assertEqual(booking_count, 0)
+
+    def test_agendamento_indica_o_turno_de_atendimento_do_barbeiro(self):
+        casos = (
+            ("09:00", "12:00", ["09:00", "10:00"], "Manhã", "Tarde"),
+            ("13:00", "18:00", ["13:00", "14:00"], "Tarde", "Manhã"),
+        )
+
+        with self.app.test_client() as client:
+            for hora_inicio, hora_fim, horarios, turno, outro_turno in casos:
+                expediente = {
+                    "dia_semana": date.fromisoformat(self.data).weekday(),
+                    "hora_inicio": hora_inicio,
+                    "hora_fim": hora_fim,
+                }
+                with (
+                    mock.patch(
+                        "app.obter_disponibilidade_semana",
+                        return_value=[expediente],
+                    ),
+                    mock.patch(
+                        "app.horarios_disponiveis",
+                        return_value=horarios,
+                    ),
+                ):
+                    response = client.get(
+                        "/agendar?"
+                        + urlencode(
+                            {
+                                "servico_id": self.servicos[30],
+                                "barbeiro_id": self.barbeiro_id,
+                                "data": self.data,
+                            }
+                        )
+                    )
+
+                self.assertEqual(response.status_code, 200)
+                html = response.get_data(as_text=True)
+                self.assertIn(
+                    f"somente no turno da {turno.lower()}",
+                    html,
+                )
+                self.assertIn(f"<h3>{turno}</h3>", html)
+                self.assertNotIn(f"<h3>{outro_turno}</h3>", html)
+                for horario in horarios:
+                    self.assertIn(f'value="{horario}"', html)
+
+    def test_card_de_servico_preserva_destino_ao_se_cadastrar(self):
+        servico_id = self.servicos[30]
+        next_url = f"/agendar?servico_id={servico_id}"
+        signup_url = f"/cadastro?{urlencode({'next': next_url})}"
+        email = f"novo-{secrets.token_hex(4)}@example.com"
+
+        with self.app.test_client() as client:
+            response = client.get(next_url)
+            signup_page = client.get(signup_url)
+            self.assertIn(f'name="next" value="{next_url}"', signup_page.get_data(as_text=True))
+            csrf_token = self._csrf_token(client, signup_url)
+            response = client.post(
+                "/cadastro",
+                data={
+                    "csrf_token": csrf_token,
+                    "next": next_url,
+                    "nome": "Novo Cliente",
+                    "email": email,
+                    "telefone": "(11) 98765-4321",
+                    "senha": "StrongPassword!2026",
+                },
+            )
+
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.location, next_url)
+            booking_page = client.get(response.location)
+
+        self.assertEqual(booking_page.status_code, 200)
+        self.assertRegex(
+            booking_page.get_data(as_text=True),
+            rf'<option value="{servico_id}" selected>',
+        )
+
+    def test_login_ignora_destino_externo(self):
+        with self.app.test_client() as client:
+            csrf_token = self._csrf_token(client, "/login")
+            response = client.post(
+                "/login",
+                data={
+                    "csrf_token": csrf_token,
+                    "email": "joao@email.com",
+                    "senha": "ClientPassword!2026",
+                    "next": "https://example.com/",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "/meus-agendamentos")
+
+    def test_cliente_logado_pula_telas_de_login_e_cadastro(self):
+        next_url = f"/agendar?servico_id={self.servicos[30]}"
+        with self.app.test_client() as client:
+            self._login(client, "joao@email.com", "ClientPassword!2026")
+            login_response = client.get(
+                f"/login?{urlencode({'next': next_url})}"
+            )
+            signup_response = client.get(
+                f"/cadastro?{urlencode({'next': next_url})}"
+            )
+
+        self.assertEqual(login_response.status_code, 302)
+        self.assertEqual(login_response.location, next_url)
+        self.assertEqual(signup_response.status_code, 302)
+        self.assertEqual(signup_response.location, next_url)
+
+    def test_homepage_exibe_endereco_de_exemplo_e_mapa_google(self):
+        with self.app.test_client() as client:
+            response = client.get("/")
+
+        html = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Avenida Paulista, 1000", html)
+        self.assertIn("Este endereço é apenas um exemplo ilustrativo", html)
+        self.assertIn('title="Mapa de localização de exemplo da BarberAgenda"', html)
+        self.assertIn("maps.google.com/maps?q=", html)
 
     def test_new_database_requires_an_admin_password(self):
         unconfigured_path = Path(self.temp_dir.name) / "unconfigured.db"
@@ -439,7 +738,7 @@ class BookingAvailabilityTests(unittest.TestCase):
 
             conn = db.get_db()
             snapshot = conn.execute(
-            "SELECT duracao_min, preco FROM agendamentos"
+                "SELECT duracao_min, preco FROM agendamentos"
             ).fetchone()
             duracao = snapshot["duracao_min"]
             preco = snapshot["preco"]

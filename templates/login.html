@@ -7,6 +7,7 @@
         <p class="muted">Acesse sua conta para agendar e gerenciar horários.</p>
         <form method="post" class="form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
             <label>E-mail
                 <input type="email" name="email" required autofocus>
             </label>
@@ -15,6 +16,7 @@
             </label>
             <button type="submit" class="btn btn-primary btn-block">Entrar</button>
         </form>
+        <p class="auth-alt">Você não tem cadastro? <a href="{{ url_for('cadastro', next=next_url) if next_url else url_for('cadastro') }}">Fazer cadastro</a></p>
     </div>
 </div>
 {% endblock %}

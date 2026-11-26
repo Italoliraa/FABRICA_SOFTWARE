@@ -34,6 +34,12 @@
         {% if barbeiro_selecionado == b.id %}
         <div class="barbeiro-disponibilidade">
             <h3>Disponibilidade em {{ data|data_br }}</h3>
+            {% if turnos_expediente|length == 1 %}
+            <div class="availability-message">
+                O barbeiro atende neste dia somente no turno da {{ turnos_expediente[0] }}.
+                Não atende no outro turno; os horários exibidos são apenas deste turno.
+            </div>
+            {% endif %}
             {% if not expediente %}
             <div class="availability-message">
                 Este barbeiro não atende neste dia.
